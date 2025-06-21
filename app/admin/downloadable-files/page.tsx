@@ -32,7 +32,7 @@ export default function DownloadableFileManagement() {
 
   const fetchFiles = async () => {
     try {
-      const response = await fetch("/api/admin/hero-buttons");
+      const response = await fetch("/api/admin/downloadable-files");
       const data = await response.json();
       setFiles(data);
     } catch (error) {
@@ -52,7 +52,7 @@ export default function DownloadableFileManagement() {
   ) => {
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/admin/hero-buttons", {
+      const response = await fetch("/api/admin/downloadable-files", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(fileData),
@@ -83,7 +83,7 @@ export default function DownloadableFileManagement() {
     setIsSubmitting(true);
     try {
       const response = await fetch(
-        `/api/admin/hero-buttons/${editingFile._id}`,
+        `/api/admin/downloadable-files/${editingFile._id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -112,7 +112,7 @@ export default function DownloadableFileManagement() {
 
   const handleDeleteFile = async (id: string) => {
     try {
-      await fetch(`/api/admin/hero-buttons/${id}`, {
+      await fetch(`/api/admin/downloadable-files/${id}`, {
         method: "DELETE",
       });
       toast({

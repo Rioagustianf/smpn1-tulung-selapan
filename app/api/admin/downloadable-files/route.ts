@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { revalidatePath } from "next/cache";
 
 export async function GET() {
   try {
@@ -41,6 +42,10 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
     const result = await db.collection("downloadable_files").insertOne(newFile);
+
+    revalidatePath("/"); // Revalidate the homepage
+    revalidatePath("/api/admin/downloadable-files"); // Revalidate the API route
+
     return NextResponse.json({ success: true, id: result.insertedId });
   } catch (error) {
     console.error("Create downloadable file error:", error);

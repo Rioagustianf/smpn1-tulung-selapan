@@ -40,12 +40,6 @@ const menuItems = [
     badge: null,
   },
   {
-    href: "/admin/hero-buttons",
-    label: "Tombol Hero",
-    icon: Box,
-    badge: null,
-  },
-  {
     href: "/admin/messages",
     label: "Pesan",
     icon: MessageSquare,

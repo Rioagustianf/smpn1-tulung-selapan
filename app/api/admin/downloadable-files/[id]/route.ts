@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { deleteFile } from "@/lib/supabase";
+import { revalidatePath } from "next/cache";
 
 export async function PUT(
   request: NextRequest,
@@ -28,6 +29,9 @@ export async function PUT(
     await db
       .collection("downloadable_files")
       .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
+
+    revalidatePath("/");
+    revalidatePath("/api/admin/downloadable-files");
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -78,6 +82,9 @@ export async function DELETE(
 
     // Delete from MongoDB
     await fileCollection.deleteOne({ _id: new ObjectId(id) });
+
+    revalidatePath("/");
+    revalidatePath("/api/admin/downloadable-files");
 
     return NextResponse.json({ success: true });
   } catch (error) {
