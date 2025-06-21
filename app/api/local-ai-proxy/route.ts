@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const LOCAL_AI_URL = process.env.LOCAL_AI_URL;
+
 export async function POST(request: NextRequest) {
+  if (!LOCAL_AI_URL) {
+    return NextResponse.json(
+      { error: "LOCAL_AI_URL environment variable is not set." },
+      { status: 500 }
+    );
+  }
+
   try {
     const body = await request.json();
 
-    const response = await fetch("http://202.10.41.72/chat", {
+    const response = await fetch(LOCAL_AI_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
