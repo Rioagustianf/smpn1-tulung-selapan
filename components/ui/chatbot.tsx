@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, Send, X, Paperclip, Smile } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { MessageCircle, Send, X, Paperclip, Smile } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Message {
   id: string;
@@ -19,18 +19,18 @@ export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '1',
-      text: 'Halo! Saya adalah asisten virtual SMP N 1 Tulung Selapan. Ada yang bisa saya bantu?',
+      id: "1",
+      text: "Halo! Saya adalah asisten virtual SMP N 1 Tulung Selapan. Ada yang bisa saya bantu?",
       isUser: false,
       timestamp: new Date(),
     },
   ]);
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -47,45 +47,96 @@ export default function Chatbot() {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
+    setMessages((prev) => [...prev, userMessage]);
+    const currentInput = inputValue; // Capture input value before clearing
+    setInputValue("");
     setIsLoading(true);
 
+    let botResponseText = "";
+
+    // Try Local AI First
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: inputValue }),
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 3000); // 3-second timeout
+
+      const localAiResponse = await fetch("/api/local-ai-proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: currentInput,
+          history: messages
+            .slice(1)
+            .map((m) => ({ text: m.text, isUser: m.isUser })),
+        }),
+        signal: controller.signal,
       });
 
-      const data = await response.json();
+      clearTimeout(timeoutId);
 
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: data.response || 'Maaf, saya tidak dapat memproses pertanyaan Anda saat ini.',
-        isUser: false,
-        timestamp: new Date(),
-      };
+      if (!localAiResponse.ok) {
+        throw new Error(
+          `Local AI server responded with status: ${localAiResponse.status}`
+        );
+      }
 
-      setMessages(prev => [...prev, botMessage]);
+      const data = await localAiResponse.json();
+      if (data.response && data.response.trim() !== "") {
+        botResponseText = data.response;
+      } else {
+        throw new Error("Local AI returned an empty response.");
+      }
     } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: 'Maaf, terjadi kesalahan. Silakan coba lagi nanti.',
-        isUser: false,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
+      console.error("Local AI failed:", error);
+      // Fallback to Groq
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `fallback-notice-${Date.now()}`,
+          text: "AI lokal tidak tersedia, mengalihkan ke Groq...",
+          isUser: false,
+          timestamp: new Date(),
+        },
+      ]);
+      try {
+        const groqApiResponse = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: currentInput,
+            history: messages
+              .slice(1)
+              .map((m) => ({ text: m.text, isUser: m.isUser })),
+          }),
+        });
+        if (!groqApiResponse.ok) {
+          throw new Error("Groq API request failed.");
+        }
+        const groqData = await groqApiResponse.json();
+        botResponseText = groqData.response;
+      } catch (groqError) {
+        console.error("Groq fallback failed:", groqError);
+        botResponseText =
+          "Maaf, kedua layanan AI sedang tidak tersedia. Coba lagi nanti.";
+      }
     }
+
+    const botMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      text:
+        botResponseText ||
+        "Maaf, saya tidak dapat memproses permintaan Anda saat ini.",
+      isUser: false,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, botMessage]);
+    setIsLoading(false);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
@@ -148,13 +199,15 @@ export default function Chatbot() {
                     key={message.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${
+                      message.isUser ? "justify-end" : "justify-start"
+                    }`}
                   >
                     <div
                       className={`max-w-[80%] p-3 rounded-lg text-sm ${
                         message.isUser
-                          ? 'bg-blue-600 text-white rounded-br-none'
-                          : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                          ? "bg-blue-600 text-white rounded-br-none"
+                          : "bg-gray-100 text-gray-800 rounded-bl-none"
                       }`}
                     >
                       {message.text}
@@ -170,8 +223,14 @@ export default function Chatbot() {
                     <div className="bg-gray-100 p-3 rounded-lg rounded-bl-none">
                       <div className="flex space-x-1">
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div
+                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.1s" }}
+                        ></div>
+                        <div
+                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.2s" }}
+                        ></div>
                       </div>
                     </div>
                   </motion.div>
