@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
+  Box,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -30,6 +31,18 @@ const menuItems = [
     href: "/admin/content",
     label: "Konten",
     icon: FileText,
+    badge: null,
+  },
+  {
+    href: "/admin/downloadable-files",
+    label: "Berkas Unduhan",
+    icon: Box,
+    badge: null,
+  },
+  {
+    href: "/admin/hero-buttons",
+    label: "Tombol Hero",
+    icon: Box,
     badge: null,
   },
   {

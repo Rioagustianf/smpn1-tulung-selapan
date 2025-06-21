@@ -16,6 +16,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import GalleryGrid from "@/components/admin/GalleryGrid";
 import { Card } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface GalleryItem {
   _id: string;
@@ -23,6 +33,13 @@ interface GalleryItem {
   image: string;
   description?: string;
   createdAt: string;
+}
+
+interface DownloadableFile {
+  _id: string;
+  title: string;
+  fileUrl: string;
+  variant: "outline" | "default";
 }
 
 interface ContentItem {
@@ -40,10 +57,16 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const [featuredContents, setFeaturedContents] = useState<ContentItem[]>([]);
+  const [downloadableFiles, setDownloadableFiles] = useState<
+    DownloadableFile[]
+  >([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedFileUrl, setSelectedFileUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchGallery();
     fetchFeaturedContents();
+    fetchDownloadableFiles();
   }, []);
 
   const fetchGallery = async () => {
@@ -73,6 +96,42 @@ export default function Home() {
     }
   };
 
+  const fetchDownloadableFiles = async () => {
+    try {
+      const response = await fetch("/api/admin/downloadable-files");
+      const data: DownloadableFile[] = await response.json();
+      setDownloadableFiles(data);
+    } catch (error) {
+      console.error("Error fetching downloadable files:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch downloadable files",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadClick = (fileUrl: string | undefined) => {
+    if (fileUrl) {
+      setSelectedFileUrl(fileUrl);
+      setDialogOpen(true);
+    } else {
+      toast({
+        title: "Info",
+        description: "Tidak ada berkas yang tersedia untuk diunduh.",
+        variant: "default",
+      });
+    }
+  };
+
+  const confirmDownload = () => {
+    if (selectedFileUrl) {
+      window.open(selectedFileUrl, "_blank");
+    }
+    setDialogOpen(false);
+    setSelectedFileUrl(null);
+  };
+
   const features = [
     {
       icon: Monitor,
@@ -94,12 +153,6 @@ export default function Home() {
       title: "Kerja Sama Luas",
       description: "Dapat kesempatan kerja yang lebih terjamin",
     },
-  ];
-
-  const heroButtons = [
-    { text: "Surat Edaran untuk Semua SD", variant: "outline" as const },
-    { text: "Surat Pemberitahuan PPDB", variant: "outline" as const },
-    { text: "Cek Hasil PPDB", variant: "default" as const },
   ];
 
   return (
@@ -126,13 +179,14 @@ export default function Home() {
               transition={{ duration: 0.8 }}
             >
               <div className="flex flex-wrap items-center gap-2 mb-4">
-                {heroButtons.map((button, index) => (
+                {downloadableFiles.map((file) => (
                   <Button
-                    key={index}
-                    variant="outline"
+                    key={file._id}
+                    variant={file.variant}
                     className="text-xs bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    onClick={() => handleDownloadClick(file.fileUrl)}
                   >
-                    {button.text}
+                    {file.title}
                   </Button>
                 ))}
               </div>
@@ -275,6 +329,25 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Unduhan</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin mengunduh berkas ini?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedFileUrl(null)}>
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDownload}>
+              Ya, Unduh
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Footer />
       <Chatbot />
