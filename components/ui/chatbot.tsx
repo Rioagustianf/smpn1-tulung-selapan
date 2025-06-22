@@ -61,14 +61,14 @@ export default function Chatbot() {
 
     try {
       // 1. Panggil backend model lokal
-      const localModelRes = await fetch(
-        process.env.NEXT_PUBLIC_MODEL_API_URL || "http://localhost:5000/chat",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: userMessage.content }),
-        }
-      );
+      const apiUrl =
+        `${process.env.NEXT_PUBLIC_MODEL_API_URL}/chat` ||
+        "http://localhost:5000/chat";
+      const localModelRes = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: userMessage.content }),
+      });
 
       if (!localModelRes.ok) {
         throw new Error("Local model API request failed");
