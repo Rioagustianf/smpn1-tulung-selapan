@@ -4,26 +4,35 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Paperclip, Smile, Send, ArrowLeft } from "lucide-react";
+import { Send, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Message {
-  id: string;
-  text: string;
-  isUser: boolean;
-  timestamp: Date;
+  role: "user" | "assistant";
+  content: string;
 }
+
+const CONFIDENCE_THRESHOLD = 0.8;
+const COMPLEX_KEYWORDS = [
+  "jelaskan",
+  "ceritakan",
+  "uraikan",
+  "bandingkan",
+  "menurutmu",
+  "opini",
+  "kenapa",
+  "bagaimana",
+];
 
 export default function ChatbotPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: "1",
-      text: "Halo! Saya adalah asisten virtual SMP N 1 Tulung Selapan. Ada yang bisa saya bantu?",
-      isUser: false,
-      timestamp: new Date(),
+      role: "assistant",
+      content:
+        "Halo! Saya adalah asisten virtual SMP N 1 Tulung Selapan. Ada yang bisa saya bantu?",
     },
   ]);
-  const [inputValue, setInputValue] = useState("");
+  const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -36,69 +45,89 @@ export default function ChatbotPage() {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: inputValue,
-      isUser: true,
-      timestamp: new Date(),
-    };
-
+    const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
+    setInput("");
     setIsLoading(true);
 
+    let finalResponse = "";
+
     try {
-      const history = messages.map((msg) => ({
-        text: msg.text,
-        isUser: msg.isUser,
-      }));
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message: inputValue, history }),
-      });
+      const localModelRes = await fetch(
+        process.env.NEXT_PUBLIC_MODEL_API_URL || "http://localhost:5000/chat",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: userMessage.content }),
+        }
+      );
 
-      const data = await response.json();
+      if (!localModelRes.ok) throw new Error("Local model API request failed");
 
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text:
-          data.response ||
-          "Maaf, saya tidak dapat memproses pertanyaan Anda saat ini.",
-        isUser: false,
-        timestamp: new Date(),
-      };
+      const localModelData = await localModelRes.json();
+      const { confidence, intent, response: localResponse } = localModelData;
+      console.log(
+        "Local AI response - Intent:",
+        intent,
+        "| Confidence:",
+        confidence
+      );
 
-      setMessages((prev) => [...prev, botMessage]);
+      const isKnownUnknown = intent === "tidak_mengerti";
+      const isUncertain =
+        confidence < CONFIDENCE_THRESHOLD && intent !== "sapaan";
+      const isComplexQuery = COMPLEX_KEYWORDS.some((keyword) =>
+        userMessage.content.toLowerCase().startsWith(keyword)
+      );
+
+      if (isKnownUnknown || isUncertain || isComplexQuery) {
+        console.log(
+          `>>> Fallback to Groq. Reason: ${
+            isKnownUnknown
+              ? "Intent tidak_mengerti"
+              : isUncertain
+              ? "Confidence low"
+              : "Complex query"
+          }`
+        );
+
+        const groqRes = await fetch("/api/chat/groq", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: userMessage.content,
+            history: messages.slice(1),
+          }),
+        });
+
+        if (!groqRes.ok) throw new Error("Groq API request failed");
+
+        const groqData = await groqRes.json();
+        finalResponse = groqData.response;
+      } else {
+        console.log(">>> Using local model response.");
+        finalResponse = localResponse;
+      }
     } catch (error) {
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "Maaf, terjadi kesalahan. Silakan coba lagi nanti.",
-        isUser: false,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
+      console.error("Chatbot logic error:", error);
+      finalResponse = "Maaf, terjadi sedikit gangguan. Coba lagi ya.";
     }
-  };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: finalResponse },
+    ]);
+    setIsLoading(false);
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-blue-600 text-white sticky top-0 z-10">
+      <header className="flex items-center justify-between px-4 py-3 border-b bg-blue-600 text-white sticky top-0 z-10 shrink-0">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -109,7 +138,7 @@ export default function ChatbotPage() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <Avatar className="w-8 h-8">
-            <AvatarImage src="/api/placeholder/32/32" />
+            <AvatarImage src="/robot-assistant.png" />
             <AvatarFallback>AI</AvatarFallback>
           </Avatar>
           <div>
@@ -121,41 +150,38 @@ export default function ChatbotPage() {
             </p>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Chat Messages Area */}
-      <div className="flex-1 overflow-y-auto px-2 py-4 md:px-0 md:py-8 max-w-2xl w-full mx-auto">
-        <div className="space-y-4">
-          {messages.map((message) => (
+      <main className="flex-1 overflow-y-auto px-4 py-8">
+        <div className="max-w-2xl w-full mx-auto space-y-6">
+          {messages.map((message, index) => (
             <div
-              key={message.id}
-              className={`flex ${
-                message.isUser ? "justify-end" : "justify-start"
-              } items-end`}
+              key={index}
+              className={`flex items-start gap-3 ${
+                message.role === "user" ? "justify-end" : "justify-start"
+              }`}
             >
-              {!message.isUser && (
-                <Avatar className="w-8 h-8 mr-2">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                  <AvatarFallback className="bg-blue-500 text-white text-xs">
-                    AI
-                  </AvatarFallback>
+              {message.role === "assistant" && (
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src="/robot-assistant.png" alt="Assistant" />
+                  <AvatarFallback>AI</AvatarFallback>
                 </Avatar>
               )}
               <div
-                className={`max-w-xs md:max-w-md px-4 py-2 rounded-2xl ${
-                  message.isUser
-                    ? "bg-blue-500 text-white rounded-br-sm"
-                    : "bg-white text-gray-800 rounded-bl-sm shadow-sm border"
+                className={`max-w-xs md:max-w-md px-4 py-2.5 rounded-2xl ${
+                  message.role === "user"
+                    ? "bg-blue-600 text-white rounded-br-lg"
+                    : "bg-white text-gray-800 rounded-bl-lg shadow-sm border"
                 }`}
               >
-                <p className="text-sm leading-relaxed break-words whitespace-pre-line">
-                  {message.text}
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {message.content}
                 </p>
               </div>
-              {message.isUser && (
-                <Avatar className="w-8 h-8 ml-2">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                  <AvatarFallback className="bg-green-500 text-white text-xs">
+              {message.role === "user" && (
+                <Avatar className="w-8 h-8">
+                  <AvatarFallback className="bg-green-500 text-white">
                     U
                   </AvatarFallback>
                 </Avatar>
@@ -163,63 +189,42 @@ export default function ChatbotPage() {
             </div>
           ))}
           {isLoading && (
-            <div className="flex justify-start items-end animate-pulse">
-              <Avatar className="w-8 h-8 mr-2">
-                <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                <AvatarFallback className="bg-blue-500 text-white text-xs">
-                  AI
-                </AvatarFallback>
+            <div className="flex items-start gap-3 justify-start animate-pulse">
+              <Avatar className="w-8 h-8">
+                <AvatarImage src="/robot-assistant.png" alt="Assistant" />
+                <AvatarFallback>AI</AvatarFallback>
               </Avatar>
-              <div className="max-w-xs md:max-w-md px-4 py-2 rounded-2xl bg-white text-gray-800 rounded-bl-sm shadow-sm border">
+              <div className="max-w-xs md:max-w-md px-4 py-2.5 rounded-2xl bg-white text-gray-800 rounded-bl-lg shadow-sm border">
                 <p className="text-sm leading-relaxed">Sedang mengetik...</p>
               </div>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
-      </div>
+      </main>
 
       {/* Input Area */}
-      <div className="border-t bg-white p-4 sticky bottom-0 z-10">
-        <div className="flex items-center space-x-2 max-w-2xl mx-auto">
-          <div className="flex-1 relative">
+      <footer className="border-t bg-white p-4 sticky bottom-0 z-10 shrink-0">
+        <div className="max-w-2xl mx-auto">
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
             <Input
               type="text"
-              placeholder="Masukan teks disini"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="pr-20 py-3 rounded-full border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+              placeholder="Ketik pesan Anda..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className="flex-grow py-2.5 rounded-full border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               disabled={isLoading}
             />
-            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full"
-                tabIndex={-1}
-              >
-                <Paperclip className="h-4 w-4 text-gray-500" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full"
-                tabIndex={-1}
-              >
-                <Smile className="h-4 w-4 text-gray-500" />
-              </Button>
-            </div>
-          </div>
-          <Button
-            onClick={sendMessage}
-            className="h-10 w-10 p-0 rounded-full bg-blue-500 hover:bg-blue-600"
-            disabled={!inputValue.trim() || isLoading}
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+            <Button
+              type="submit"
+              className="h-10 w-10 p-0 rounded-full bg-blue-600 hover:bg-blue-700"
+              disabled={!input.trim() || isLoading}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }

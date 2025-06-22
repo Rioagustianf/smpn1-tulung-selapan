@@ -9,137 +9,129 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Message {
-  id: string;
-  text: string;
-  isUser: boolean;
-  timestamp: Date;
+  role: "user" | "assistant";
+  content: string;
 }
+
+const CONFIDENCE_THRESHOLD = 0.8; // Kita naikkan ambang batas menjadi 80%
+const COMPLEX_KEYWORDS = [
+  "jelaskan",
+  "ceritakan",
+  "uraikan",
+  "bandingkan",
+  "menurutmu",
+  "opini",
+  "kenapa",
+  "bagaimana",
+];
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: "1",
-      text: "Halo! Saya adalah asisten virtual SMP N 1 Tulung Selapan. Ada yang bisa saya bantu?",
-      isUser: false,
-      timestamp: new Date(),
+      role: "assistant",
+      content:
+        "Halo! Saya adalah asisten virtual SMP N 1 Tulung Selapan. Ada yang bisa saya bantu?",
     },
   ]);
-  const [inputValue, setInputValue] = useState("");
+  const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scrollToBottom();
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    }
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+  };
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: inputValue,
-      isUser: true,
-      timestamp: new Date(),
-    };
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
 
+    const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
-    const currentInput = inputValue; // Capture input value before clearing
-    setInputValue("");
+    setInput("");
     setIsLoading(true);
 
-    let botResponseText = "";
+    let finalResponse = "";
 
-    // Try Local AI First
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-      }, 3000); // 3-second timeout
-
-      const localAiResponse = await fetch("/api/local-ai-proxy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: currentInput,
-          history: messages
-            .slice(1)
-            .map((m) => ({ text: m.text, isUser: m.isUser })),
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!localAiResponse.ok) {
-        throw new Error(
-          `Local AI server responded with status: ${localAiResponse.status}`
-        );
-      }
-
-      const data = await localAiResponse.json();
-      if (data.response && data.response.trim() !== "") {
-        botResponseText = data.response;
-      } else {
-        throw new Error("Local AI returned an empty response.");
-      }
-    } catch (error) {
-      console.error("Local AI failed:", error);
-      // Fallback to Groq
-      setMessages((prev) => [
-        ...prev,
+      // 1. Panggil backend model lokal
+      const localModelRes = await fetch(
+        process.env.NEXT_PUBLIC_MODEL_API_URL || "http://localhost:5000/chat",
         {
-          id: `fallback-notice-${Date.now()}`,
-          text: "AI lokal tidak tersedia, mengalihkan ke Groq...",
-          isUser: false,
-          timestamp: new Date(),
-        },
-      ]);
-      try {
-        const groqApiResponse = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: userMessage.content }),
+        }
+      );
+
+      if (!localModelRes.ok) {
+        throw new Error("Local model API request failed");
+      }
+
+      const localModelData = await localModelRes.json();
+      const { confidence, intent, response: localResponse } = localModelData;
+      console.log(
+        "Local AI response - Intent:",
+        intent,
+        "| Confidence:",
+        confidence
+      );
+
+      // 2. Tentukan apakah perlu fallback ke Groq
+      const isKnownUnknown = intent === "tidak_mengerti";
+      const isUncertain =
+        confidence < CONFIDENCE_THRESHOLD && intent !== "sapaan";
+      const isComplexQuery = COMPLEX_KEYWORDS.some((keyword) =>
+        userMessage.content.toLowerCase().startsWith(keyword)
+      );
+
+      if (isKnownUnknown || isUncertain || isComplexQuery) {
+        console.log(
+          `>>> Fallback to Groq. Reason: ${
+            isKnownUnknown
+              ? "Intent tidak_mengerti"
+              : isUncertain
+              ? "Confidence low"
+              : "Complex query"
+          }`
+        );
+
+        // Panggil Groq API
+        const groqRes = await fetch("/api/chat/groq", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            message: currentInput,
-            history: messages
-              .slice(1)
-              .map((m) => ({ text: m.text, isUser: m.isUser })),
+            message: userMessage.content,
+            history: messages,
           }),
         });
-        if (!groqApiResponse.ok) {
-          throw new Error("Groq API request failed.");
+
+        if (!groqRes.ok) {
+          throw new Error("Groq API request failed");
         }
-        const groqData = await groqApiResponse.json();
-        botResponseText = groqData.response;
-      } catch (groqError) {
-        console.error("Groq fallback failed:", groqError);
-        botResponseText =
-          "Maaf, kedua layanan AI sedang tidak tersedia. Coba lagi nanti.";
+        const groqData = await groqRes.json();
+        finalResponse = groqData.response;
+      } else {
+        // Jika tidak perlu fallback, gunakan respons dari model lokal
+        console.log(">>> Using local model response.");
+        finalResponse = localResponse;
       }
+    } catch (error) {
+      console.error("Chatbot logic error:", error);
+      finalResponse = "Maaf, terjadi sedikit gangguan. Coba lagi ya.";
     }
 
-    const botMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      text:
-        botResponseText ||
-        "Maaf, saya tidak dapat memproses permintaan Anda saat ini.",
-      isUser: false,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, botMessage]);
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: finalResponse },
+    ]);
     setIsLoading(false);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
   };
 
   return (
@@ -192,83 +184,73 @@ export default function Chatbot() {
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
+            <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
               <div className="space-y-4">
-                {messages.map((message) => (
-                  <motion.div
-                    key={message.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`flex ${
-                      message.isUser ? "justify-end" : "justify-start"
+                {messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-end gap-2 ${
+                      message.role === "user" ? "justify-end" : ""
                     }`}
                   >
+                    {message.role === "assistant" && (
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage
+                          src="/robot-assistant.png"
+                          alt="Assistant"
+                        />
+                        <AvatarFallback>AI</AvatarFallback>
+                      </Avatar>
+                    )}
                     <div
-                      className={`max-w-[80%] p-3 rounded-lg text-sm ${
-                        message.isUser
-                          ? "bg-blue-600 text-white rounded-br-none"
-                          : "bg-gray-100 text-gray-800 rounded-bl-none"
+                      className={`max-w-xs rounded-lg px-4 py-2 ${
+                        message.role === "user"
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-900"
                       }`}
                     >
-                      {message.text}
+                      <p className="text-sm">{message.content}</p>
                     </div>
-                  </motion.div>
+                    {message.role === "user" && (
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src="" alt="User" />
+                        <AvatarFallback>U</AvatarFallback>
+                      </Avatar>
+                    )}
+                  </div>
                 ))}
                 {isLoading && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex justify-start"
-                  >
-                    <div className="bg-gray-100 p-3 rounded-lg rounded-bl-none">
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div
-                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.1s" }}
-                        ></div>
-                        <div
-                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.2s" }}
-                        ></div>
-                      </div>
+                  <div className="flex items-end gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src="/robot-assistant.png" alt="Assistant" />
+                      <AvatarFallback>AI</AvatarFallback>
+                    </Avatar>
+                    <div className="max-w-xs rounded-lg px-4 py-2 bg-gray-200 text-gray-900">
+                      <p className="text-sm">...</p>
                     </div>
-                  </motion.div>
+                  </div>
                 )}
-                <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
 
             {/* Input */}
             <div className="p-4 border-t">
-              <div className="flex items-center space-x-2">
-                <div className="flex-1 relative">
-                  <Input
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Masukan teks disini"
-                    className="pr-20"
-                    disabled={isLoading}
-                  />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
-                    <Button variant="ghost" size="sm" className="p-1 h-auto">
-                      <Paperclip className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="p-1 h-auto">
-                      <Smile className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
+              <form onSubmit={handleSubmit} className="flex gap-2">
+                <Input
+                  value={input}
+                  onChange={handleInputChange}
+                  placeholder="Ketik pesan Anda..."
+                  className="flex-grow"
+                  disabled={isLoading}
+                />
                 <Button
-                  onClick={sendMessage}
-                  disabled={!inputValue.trim() || isLoading}
-                  size="sm"
+                  type="submit"
+                  disabled={!input.trim() || isLoading}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
-                  <Send className="w-4 h-4" />
+                  Kirim
                 </Button>
-              </div>
+              </form>
             </div>
           </motion.div>
         )}
