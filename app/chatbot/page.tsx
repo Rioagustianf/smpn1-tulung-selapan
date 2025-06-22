@@ -70,12 +70,6 @@ export default function ChatbotPage() {
 
       const localModelData = await localModelRes.json();
       const { confidence, intent, response: localResponse } = localModelData;
-      console.log(
-        "Local AI response - Intent:",
-        intent,
-        "| Confidence:",
-        confidence
-      );
 
       const isKnownUnknown = intent === "tidak_mengerti";
       const isUncertain =
@@ -85,16 +79,6 @@ export default function ChatbotPage() {
       );
 
       if (isKnownUnknown || isUncertain || isComplexQuery) {
-        console.log(
-          `>>> Fallback to Groq. Reason: ${
-            isKnownUnknown
-              ? "Intent tidak_mengerti"
-              : isUncertain
-              ? "Confidence low"
-              : "Complex query"
-          }`
-        );
-
         const groqRes = await fetch("/api/chat/groq", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -109,7 +93,6 @@ export default function ChatbotPage() {
         const groqData = await groqRes.json();
         finalResponse = groqData.response;
       } else {
-        console.log(">>> Using local model response.");
         finalResponse = localResponse;
       }
     } catch (error) {

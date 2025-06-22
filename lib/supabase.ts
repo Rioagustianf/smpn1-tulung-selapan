@@ -14,6 +14,16 @@ export const uploadImage = async (file: File, bucket: string, path: string) => {
   return data;
 };
 
+export const uploadFile = async (file: File, folder: string) => {
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${Math.random()}.${fileExt}`;
+  const path = `${folder}/${fileName}`;
+
+  await uploadImage(file, "chatbot", path);
+
+  return getImageUrl("chatbot", path);
+};
+
 export const getImageUrl = (bucket: string, path: string) => {
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
 

@@ -18,9 +18,7 @@ import {
 
 interface GalleryItem {
   _id: string;
-  title: string;
   image: string;
-  description?: string;
   createdAt: string;
 }
 
@@ -49,7 +47,7 @@ export default function GalleryGrid({
           <div className="relative">
             <img
               src={imgError[item._id] ? "/no-image.png" : item.image}
-              alt={item.title || "Gallery Image"}
+              alt="Gallery Image"
               className="w-full h-48 object-cover"
               onError={() =>
                 setImgError((prev) => ({ ...prev, [item._id]: true }))
@@ -87,18 +85,6 @@ export default function GalleryGrid({
                 </AlertDialogContent>
               </AlertDialog>
             </div>
-          </div>
-
-          <div className="p-4">
-            {item.title && (
-              <h3 className="font-semibold text-gray-900 mb-2">{item.title}</h3>
-            )}
-            {item.description && (
-              <p className="text-sm text-gray-600 mb-2">{item.description}</p>
-            )}
-            <p className="text-xs text-gray-400">
-              {new Date(item.createdAt).toLocaleDateString()}
-            </p>
           </div>
         </motion.div>
       ))}

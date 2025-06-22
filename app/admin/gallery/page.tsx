@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, FormEvent, ChangeEvent } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -11,17 +11,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useRef } from "react";
 
 interface GalleryItem {
   _id: string;
-  title: string;
   image: string;
-  description?: string;
   createdAt: string;
 }
 
@@ -29,16 +26,25 @@ export default function GalleryManagement() {
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState({ imageFile: null as File | null });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // State untuk Add Modal
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addFile, setAddFile] = useState<File | null>(null);
+  const addFileInputRef = useRef<HTMLInputElement>(null);
+
+  // State untuk Edit Modal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFile, setEditFile] = useState<File | null>(null);
+  const [editingItem, setEditingItem] = useState<GalleryItem | null>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchGallery();
   }, []);
 
   const fetchGallery = async () => {
+    setIsLoading(true);
     try {
       const response = await fetch("/api/admin/gallery");
       const data = await response.json();
@@ -47,7 +53,7 @@ export default function GalleryManagement() {
       console.error("Error fetching gallery:", error);
       toast({
         title: "Error",
-        description: "Gagal mengambil galeri",
+        description: "Gagal mengambil data galeri",
         variant: "destructive",
       });
     } finally {
@@ -55,50 +61,39 @@ export default function GalleryManagement() {
     }
   };
 
-  const handleEdit = (item: GalleryItem) => {
-    // TODO: Implement edit functionality
-    console.log("Edit item:", item);
-  };
-
   const handleDelete = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus gambar ini?")) return;
     try {
       const response = await fetch(`/api/admin/gallery/${id}`, {
         method: "DELETE",
       });
-
       if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Item galeri berhasil dihapus",
-        });
+        toast({ title: "Sukses", description: "Gambar berhasil dihapus." });
         fetchGallery();
+      } else {
+        throw new Error("Gagal menghapus gambar.");
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Gagal menghapus item galeri",
+        description: error.message || "Gagal menghapus gambar.",
         variant: "destructive",
       });
     }
   };
 
-  const handleOpenModal = () => {
-    setForm({ imageFile: null });
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setIsModalOpen(true);
+  const handleOpenAddModal = () => {
+    setAddFile(null);
+    if (addFileInputRef.current) addFileInputRef.current.value = "";
+    setIsAddModalOpen(true);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files && e.target.files[0];
-    setForm((prev) => ({ ...prev, imageFile: file || null }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!form.imageFile) {
+    if (!addFile) {
       toast({
         title: "Error",
-        description: "Gambar diperlukan",
+        description: "File gambar harus dipilih.",
         variant: "destructive",
       });
       return;
@@ -106,32 +101,67 @@ export default function GalleryManagement() {
     setIsSubmitting(true);
     try {
       const formData = new FormData();
-      if (form.imageFile) formData.append("image", form.imageFile);
+      formData.append("image", addFile);
       const response = await fetch("/api/admin/gallery", {
         method: "POST",
         body: formData,
       });
       if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Gambar ditambahkan ke galeri",
-        });
-        setIsModalOpen(false);
-        setForm({ imageFile: null });
-        if (fileInputRef.current) fileInputRef.current.value = "";
+        toast({ title: "Sukses", description: "Gambar berhasil ditambahkan." });
+        setIsAddModalOpen(false);
         fetchGallery();
       } else {
         const data = await response.json();
-        toast({
-          title: "Error",
-          description: data.error || "Gagal menambahkan gambar",
-          variant: "destructive",
-        });
+        throw new Error(data.error || "Gagal menambahkan gambar.");
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Gagal menambahkan gambar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenEditModal = (item: GalleryItem) => {
+    setEditingItem(item);
+    setEditFile(null);
+    if (editFileInputRef.current) editFileInputRef.current.value = "";
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editFile || !editingItem) {
+      toast({
+        title: "Error",
+        description: "File gambar baru harus dipilih.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", editFile);
+      const response = await fetch(`/api/admin/gallery/${editingItem._id}`, {
+        method: "PUT",
+        body: formData,
+      });
+      if (response.ok) {
+        toast({ title: "Sukses", description: "Gambar berhasil diperbarui." });
+        setIsEditModalOpen(false);
+        fetchGallery();
+      } else {
+        const data = await response.json();
+        throw new Error(data.error || "Gagal memperbarui gambar.");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -158,51 +188,87 @@ export default function GalleryManagement() {
       description="Kelola foto dan gambar sekolah"
     >
       <div className="flex justify-end mb-6">
-        <Button onClick={handleOpenModal}>
+        <Button onClick={handleOpenAddModal}>
           <Plus className="w-4 h-4 mr-2" />
           Tambah Gambar
         </Button>
       </div>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-lg w-full max-h-[80vh] overflow-y-auto">
+      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tambah Gambar ke Galeri</DialogTitle>
+            <DialogTitle>Tambah Gambar Baru</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleAddSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="image">Gambar</Label>
+              <Label htmlFor="add-image">Pilih Gambar</Label>
               <Input
-                id="image"
+                id="add-image"
                 type="file"
                 accept="image/*"
-                ref={fileInputRef}
-                onChange={handleFileChange}
+                ref={addFileInputRef}
+                onChange={(e) => setAddFile(e.target.files?.[0] || null)}
                 required
               />
-              {form.imageFile && (
+              {addFile && (
                 <img
-                  src={URL.createObjectURL(form.imageFile)}
+                  src={URL.createObjectURL(addFile)}
                   alt="Preview"
                   className="h-24 mt-2 rounded"
                 />
               )}
             </div>
-            <div className="flex justify-end space-x-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsModalOpen(false)}
-              >
-                Batal
-              </Button>
+            <DialogFooter>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Menyimpan..." : "Tambah"}
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {editingItem && (
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ganti Gambar</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdateSubmit} className="space-y-4">
+              <div>
+                <Label>Gambar Saat Ini:</Label>
+                <img
+                  src={editingItem.image}
+                  alt="Current"
+                  className="h-24 mt-1 rounded border"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-image">Pilih Gambar Baru</Label>
+                <Input
+                  id="edit-image"
+                  type="file"
+                  accept="image/*"
+                  ref={editFileInputRef}
+                  onChange={(e) => setEditFile(e.target.files?.[0] || null)}
+                  required
+                />
+                {editFile && (
+                  <img
+                    src={URL.createObjectURL(editFile)}
+                    alt="New Preview"
+                    className="h-24 mt-2 rounded"
+                  />
+                )}
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Memperbarui..." : "Simpan Perubahan"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {gallery.length === 0 ? (
         <div className="text-center py-12">
@@ -211,7 +277,7 @@ export default function GalleryManagement() {
       ) : (
         <GalleryGrid
           items={gallery}
-          onEdit={handleEdit}
+          onEdit={handleOpenEditModal}
           onDelete={handleDelete}
         />
       )}

@@ -129,21 +129,15 @@ export const getChatResponse = async (
     if (localResponse && localResponse.response) {
       // Jika model lokal berhasil dan tidak menggunakan fallback
       if (!localResponse.response.startsWith("[LLM]")) {
-        console.log(
-          `Local AI response - Intent: ${localResponse.intent}, Slots:`,
-          localResponse.slots
-        );
         return localResponse.response;
       }
 
       // Jika model lokal menggunakan fallback, gunakan Groq
-      console.log("Local AI fallback detected, using Groq...");
       const groqResponse = await getGroqResponse(message);
       return groqResponse.response;
     }
 
     // Jika model lokal tidak tersedia, gunakan Groq
-    console.log("Local AI not available, using Groq...");
     const groqResponse = await getGroqResponse(message);
     return groqResponse.response;
   } catch (error) {
