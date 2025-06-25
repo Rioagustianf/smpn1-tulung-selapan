@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState("");
@@ -42,6 +44,15 @@ export default function AdminLoginPage() {
         onSubmit={handleSubmit}
         className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm space-y-6"
       >
+        <div className="flex justify-start mb-2">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Kembali
+          </Link>
+        </div>
         <h2 className="text-2xl font-bold text-center mb-4">Admin Login</h2>
         {error && (
           <div className="text-red-600 text-sm text-center">{error}</div>
