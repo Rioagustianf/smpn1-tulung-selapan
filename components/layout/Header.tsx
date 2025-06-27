@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -46,7 +47,16 @@ export default function Header() {
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" className="text-xl font-bold text-gray-800">
+          <Link
+            href="/"
+            className="text-xl font-bold text-gray-800 flex items-center gap-2"
+          >
+            <Image
+              src="/SMPLOGO.png"
+              alt="SMP N 1 Tulung Selapan"
+              width={40}
+              height={40}
+            />
             SMP N 1 Tulung Selapan
           </Link>
 

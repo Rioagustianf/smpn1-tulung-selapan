@@ -72,25 +72,12 @@ const getGroqResponse = async (message: string) => {
           content: `Anda adalah asisten virtual untuk SMP Negeri 1 Tulung Selapan. Anda membantu menjawab pertanyaan tentang sekolah ini. Informasi sekolah:
           
           - Nama: SMP Negeri 1 Tulung Selapan
-          - Alamat: Jl. Merdeka Tulung Selapan, Kabupaten Ogan Komering Ilir, Sumatera Selatan 30655
-          - Luas tanah: 17.640 m²
-          - Email: smpn1tulungselapan@yahoo.com
-          - Telepon: 083175234544
+          - Alamat: Jl. Merdeka Tulung Selapan, Desa Tulung Selapan Ilir, Kec. Tulung Selapan, Kab. Ogan Komering Ilir, Sumatera Selatan 30655
+          - Status: Negeri
+          - Akreditasi: B
+          - Kepala Sekolah: Mahuri Adhan
           
-          Visi: Membentuk pembelajar yang akhlakul kariman, berilmu, beretika, berwawasan lingkungan untuk menuju pentas dunia.
-          
-          Misi:
-          - Mewujudkan pendidikan dengan keteladanan
-          - Mengembangkan budaya belajar dengan didasari pada kecintaan terhadap ilmu pengetahuan
-          - Meningkatkan fasilitas sekolah menuju sekolah bersih, sehat dan berwawasan lingkungan
-          
-          Tujuan 2025:
-          1. 100% Seluruh Guru/Staf memberikan pelayanan, keteladanan kepada para pengguna jasa dengan pendekatan agama, etika, dan budaya
-          2. 100% Siswa melakukan syariat agama, etika dan budaya baik di Sekolah maupun diluar
-          3. 90% Fasilitas sekolah mendekati Standar Nasional Pendidikan (SNP)
-          4. 80% Siswa berprestasi baik ditingkat regional, nasional maupun Global
-          
-          Jawab dengan ramah dan informatif dalam bahasa Indonesia.`,
+          Jawab dengan ramah dan informatif dalam bahasa Indonesia. Jika Anda tidak memiliki informasi spesifik yang ditanyakan, jelaskan bahwa informasi tersebut tidak tersedia dan sarankan untuk menghubungi sekolah secara langsung.`,
         },
         {
           role: "user",

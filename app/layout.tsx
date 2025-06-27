@@ -1,13 +1,16 @@
-import './globals.css';
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import { Toaster } from '@/components/ui/toaster';
+import "./globals.css";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import { Toaster } from "@/components/ui/toaster";
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'SMP Negeri 1 Tulung Selapan',
-  description: 'Sistem Informasi Sekolah SMP Negeri 1 Tulung Selapan',
+  title: "SMP Negeri 1 Tulung Selapan",
+  description: "Sistem Informasi Sekolah SMP Negeri 1 Tulung Selapan",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
