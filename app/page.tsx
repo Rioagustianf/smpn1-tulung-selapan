@@ -16,7 +16,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import GalleryGrid from "@/components/admin/GalleryGrid";
 import { Card } from "@/components/ui/card";
-import { Settings } from "@/types/settings";
 
 import {
   AlertDialog,
