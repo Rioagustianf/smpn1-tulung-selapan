@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 const menuItems = [
   {
     href: "/admin",
-    label: "Dasbor",
+    label: "Dashboard",
     icon: LayoutDashboard,
     badge: null,
   },
@@ -72,7 +72,7 @@ export default function AdminSidebar() {
   return (
     <aside
       className={cn(
-        "bg-white shadow-xl border-r border-gray-200 transition-all duration-300 flex flex-col relative z-10",
+        "bg-white shadow-xl border-r border-gray-200 transition-all duration-300 flex flex-col h-screen fixed left-0 top-0 z-10",
         isCollapsed ? "w-16" : "w-64"
       )}
     >

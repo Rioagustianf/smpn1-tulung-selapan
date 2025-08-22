@@ -12,6 +12,7 @@ import Footer from "@/components/layout/Footer";
 import Chatbot from "@/components/ui/chatbot";
 import HeroSection from "@/components/ui/HeroSection";
 import heroKontak from "@/public/herokontak.png";
+import { useSettings } from "@/hooks/use-settings";
 
 export default function Kontak() {
   const [formData, setFormData] = useState({
@@ -22,6 +23,7 @@ export default function Kontak() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { settings, loading: settingsLoading } = useSettings();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,17 +202,27 @@ export default function Kontak() {
                 <div className="flex flex-col gap-4">
                   <img
                     src="/herobg.png"
-                    alt="SMPN 1 Tulung Selapan"
+                    alt={settings?.schoolName || "SMPN 1 Tulung Selapan"}
                     className="w-100 h-100 rounded object-cover border"
                   />
                   <div>
                     <p className="text-lg font-semibold text-gray-800">
-                      SMPN 1 TULUNG SELAPAN
+                      {settings?.schoolName || "SMPN 1 TULUNG SELAPAN"}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Jl. Merdeka, Tulung Selapan, Kab. Ogan Komering Ilir,
-                      Sumatera Selatan
+                      {settings?.address ||
+                        "Jl. Merdeka, Tulung Selapan, Kab. Ogan Komering Ilir, Sumatera Selatan"}
                     </p>
+                    {settings?.phone && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        📞 {settings.phone}
+                      </p>
+                    )}
+                    {settings?.email && (
+                      <p className="text-sm text-gray-600">
+                        ✉️ {settings.email}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

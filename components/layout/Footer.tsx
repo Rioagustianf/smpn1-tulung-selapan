@@ -1,9 +1,12 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import { MapPin, Mail, Phone } from 'lucide-react';
+import { motion } from "framer-motion";
+import { MapPin, Mail, Phone } from "lucide-react";
+import { useSettings } from "@/hooks/use-settings";
 
 export default function Footer() {
+  const { settings } = useSettings();
+
   return (
     <motion.footer
       initial={{ opacity: 0 }}
@@ -27,9 +30,8 @@ export default function Footer() {
             <div>
               <h3 className="text-lg font-semibold mb-2">Address</h3>
               <p className="text-gray-300 text-sm leading-relaxed">
-                Jl. Merdeka Tulung Selapan,<br />
-                Ogan Komering Ilir Regency,<br />
-                South Sumatra 30655
+                {settings?.address ||
+                  "Jl. Merdeka Tulung Selapan, Ogan Komering Ilir Regency, South Sumatra 30655"}
               </p>
             </div>
           </motion.div>
@@ -48,7 +50,7 @@ export default function Footer() {
             <div>
               <h3 className="text-lg font-semibold mb-2">Mail Us</h3>
               <p className="text-gray-300 text-sm">
-                smpn1tulungselapan@yahoo.com
+                {settings?.email || "smpn1tulungselapan@yahoo.com"}
               </p>
             </div>
           </motion.div>
@@ -67,7 +69,7 @@ export default function Footer() {
             <div>
               <h3 className="text-lg font-semibold mb-2">Telephone</h3>
               <p className="text-gray-300 text-sm">
-                083175234544
+                {settings?.phone || "083175234544"}
               </p>
             </div>
           </motion.div>
@@ -81,7 +83,7 @@ export default function Footer() {
           className="border-t border-gray-700 mt-8 pt-8 text-center"
         >
           <p className="text-gray-400 text-sm">
-            Copyright © SMP Negeri 1 Tulung Selapan
+            Copyright © {settings?.schoolName || "SMP Negeri 1 Tulung Selapan"}
           </p>
         </motion.div>
       </div>

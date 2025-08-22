@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,35 +10,82 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import AdminLayout from "@/components/admin/AdminLayout";
 
+interface Settings {
+  schoolName: string;
+  address: string;
+  phone: string;
+  email: string;
+  vision: string;
+  mission: string;
+}
+
 export default function SettingsManagement() {
-  const [settings, setSettings] = useState({
-    schoolName: "SMP Negeri 1 Tulung Selapan",
-    address:
-      "Jl. Merdeka Tulung Selapan, Kec., Tulung Selapan, Kab. Ogan Komering Ilir, Prov., Sumatera Selatan",
-    phone: "083175234544",
-    email: "smpn1tulungselapan@yahoo.com",
-    vision:
-      "Membentuk pembelajar yang akhlakul kariman, berilmu, beretika, berwawasan lingkungan untuk menuju pentas dunia.",
-    mission:
-      "Mewujudkan pendidikan dengan keteladanan\nMengembangkan budaya belajar dengan didasari pada kecintaan terhadap ilmu pengetahuan\nMeningkatkan fasilitas sekolah menuju sekolah bersih, sehat dan berwawasan lingkungan",
+  const [settings, setSettings] = useState<Settings>({
+    schoolName: "",
+    address: "",
+    phone: "",
+    email: "",
+    vision: "",
+    mission: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const { toast } = useToast();
+
+  // Fetch settings on component mount
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/admin/settings");
+      if (response.ok) {
+        const data = await response.json();
+        setSettings(data);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load settings",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load settings",
+        variant: "destructive",
+      });
+    } finally {
+      setIsInitialLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      toast({
-        title: "Success",
-        description: "Settings saved successfully",
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(settings),
       });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Settings saved successfully",
+        });
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to save settings");
+      }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save settings",
+        description:
+          error instanceof Error ? error.message : "Failed to save settings",
         variant: "destructive",
       });
     } finally {
@@ -49,6 +96,22 @@ export default function SettingsManagement() {
   const handleChange = (field: keyof typeof settings, value: string) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
   };
+
+  if (isInitialLoading) {
+    return (
+      <AdminLayout
+        title="Pengaturan"
+        description="Kelola informasi sekolah dan pengaturan sistem"
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading settings...</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout
@@ -63,7 +126,7 @@ export default function SettingsManagement() {
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="schoolName">School Name</Label>
+                <Label htmlFor="schoolName">Nama Sekolah</Label>
                 <Input
                   id="schoolName"
                   value={settings.schoolName}
@@ -71,7 +134,7 @@ export default function SettingsManagement() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email Sekolah</Label>
                 <Input
                   id="email"
                   type="email"
@@ -82,7 +145,7 @@ export default function SettingsManagement() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="address">Alamat Sekolah</Label>
               <Textarea
                 id="address"
                 value={settings.address}
@@ -92,7 +155,7 @@ export default function SettingsManagement() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone">No. Telepon Sekolah</Label>
               <Input
                 id="phone"
                 value={settings.phone}
@@ -104,11 +167,11 @@ export default function SettingsManagement() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Vision & Mission</CardTitle>
+            <CardTitle>Visi & Misi</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="vision">Vision</Label>
+              <Label htmlFor="vision">Visi</Label>
               <Textarea
                 id="vision"
                 value={settings.vision}
@@ -118,7 +181,7 @@ export default function SettingsManagement() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="mission">Mission</Label>
+              <Label htmlFor="mission">Misi</Label>
               <Textarea
                 id="mission"
                 value={settings.mission}
