@@ -14,7 +14,7 @@ export default function Footer() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch("/api/settings");
+      const response = await fetch(`/api/settings/${Date.now()}`);
       const data = await response.json();
       setSettings(data);
     } catch (error) {

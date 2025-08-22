@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 
-export async function GET() {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { timestamp: string } }
+) {
   try {
-    // Force revalidation for production
-    const revalidate = 0;
-
     const client = await clientPromise;
     const db = client.db("smp-tulung-selapan");
 
@@ -26,7 +26,14 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json(settings);
+    const response = NextResponse.json(settings);
+    response.headers.set(
+      "Cache-Control",
+      "no-cache, no-store, must-revalidate"
+    );
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+    return response;
   } catch (error) {
     console.error("Get settings error:", error);
     return NextResponse.json(
