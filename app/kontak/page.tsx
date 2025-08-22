@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import Footer from "@/components/layout/Footer";
 import Chatbot from "@/components/ui/chatbot";
 import HeroSection from "@/components/ui/HeroSection";
 import heroKontak from "@/public/herokontak.png";
+import { Settings } from "@/types/settings";
 
 export default function Kontak() {
   const [formData, setFormData] = useState({
@@ -21,7 +22,7 @@ export default function Kontak() {
     message: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {

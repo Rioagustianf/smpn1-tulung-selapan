@@ -3,9 +3,10 @@
 import { motion } from "framer-motion";
 import { MapPin, Mail, Phone } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Settings } from "@/types/settings";
 
 export default function Footer() {
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
 
   useEffect(() => {
     fetchSettings();

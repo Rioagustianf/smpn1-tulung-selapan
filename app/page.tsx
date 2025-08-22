@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import GalleryGrid from "@/components/admin/GalleryGrid";
 import { Card } from "@/components/ui/card";
+import { Settings } from "@/types/settings";
 
 import {
   AlertDialog,
@@ -27,6 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Settings } from "@/types/settings";
 
 interface GalleryItem {
   _id: string;
@@ -63,7 +65,7 @@ export default function Home() {
   >([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedFileUrl, setSelectedFileUrl] = useState<string | null>(null);
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
 
   useEffect(() => {
     fetchGallery();
