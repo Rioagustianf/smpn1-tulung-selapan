@@ -77,6 +77,9 @@ export default function SettingsManagement() {
           title: "Success",
           description: "Settings saved successfully",
         });
+
+        // Refresh settings data
+        await fetchSettings();
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to save settings");

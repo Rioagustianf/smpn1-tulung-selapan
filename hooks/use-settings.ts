@@ -27,7 +27,6 @@ export function useSettings() {
       if (!response.ok) {
         throw new Error("Failed to fetch settings");
       }
-
       const data = await response.json();
       setSettings(data);
     } catch (err) {
