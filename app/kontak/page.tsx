@@ -12,7 +12,6 @@ import Footer from "@/components/layout/Footer";
 import Chatbot from "@/components/ui/chatbot";
 import HeroSection from "@/components/ui/HeroSection";
 import heroKontak from "@/public/herokontak.png";
-import { useSettings } from "@/hooks/use-settings";
 
 export default function Kontak() {
   const [formData, setFormData] = useState({
@@ -22,8 +21,8 @@ export default function Kontak() {
     message: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [settings, setSettings] = useState<any>(null);
   const { toast } = useToast();
-  const { settings, loading: settingsLoading } = useSettings();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +63,20 @@ export default function Kontak() {
       ...prev,
       [e.target.name]: e.target.value,
     }));
+  };
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/settings");
+      const data = await response.json();
+      setSettings(data);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+    }
   };
 
   return (

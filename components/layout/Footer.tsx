@@ -2,10 +2,24 @@
 
 import { motion } from "framer-motion";
 import { MapPin, Mail, Phone } from "lucide-react";
-import { useSettings } from "@/hooks/use-settings";
+import { useState, useEffect } from "react";
 
 export default function Footer() {
-  const { settings } = useSettings();
+  const [settings, setSettings] = useState<any>(null);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/settings");
+      const data = await response.json();
+      setSettings(data);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+    }
+  };
 
   return (
     <motion.footer

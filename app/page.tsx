@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import GalleryGrid from "@/components/admin/GalleryGrid";
 import { Card } from "@/components/ui/card";
-import { useSettings } from "@/hooks/use-settings";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,12 +63,13 @@ export default function Home() {
   >([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedFileUrl, setSelectedFileUrl] = useState<string | null>(null);
-  const { settings, loading: settingsLoading } = useSettings();
+  const [settings, setSettings] = useState<any>(null);
 
   useEffect(() => {
     fetchGallery();
     fetchFeaturedContents();
     fetchDownloadableFiles();
+    fetchSettings();
   }, []);
 
   const fetchGallery = async () => {
@@ -110,6 +111,16 @@ export default function Home() {
         description: "Failed to fetch downloadable files",
         variant: "destructive",
       });
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/settings");
+      const data = await response.json();
+      setSettings(data);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
     }
   };
 
